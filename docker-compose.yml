@@ -1,0 +1,48 @@
+services:
+  db:
+    image: mysql
+    container_name: db
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    tty: true
+    volumes:
+      - ./setup-db/setup.sql:/docker-entrypoint-initdb.d/1.sql
+      - ./db-data:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: project_db
+      MYSQL_ROOT_PASSWORD: root
+    networks:
+      - my-network
+
+  node:
+    build:
+      context: node
+    container_name: node
+    command: dockerize --wait tcp://db:3306 -timeout 20s docker-entrypoint.sh
+    entrypoint: node index.js
+    restart: always
+    tty: true
+    volumes:
+      - ./node:/usr/src/app
+    networks:
+      - my-network
+    depends_on:
+      - db
+    
+  nginx:
+    build:
+      context: nginx
+    container_name: nginx
+    restart: always
+    tty: true
+    networks:
+      - my-network
+    ports:
+      - 8080:80
+    depends_on:
+      - node
+
+
+networks:
+  my-network:
+    driver: bridge
